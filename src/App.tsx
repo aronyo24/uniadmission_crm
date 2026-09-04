@@ -1,0 +1,55 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/lib/auth";
+import { RequireCrm } from "@/components/require-crm";
+import { CrmLayout } from "@/components/crm/CrmLayout";
+import LoginPage from "@/pages/Login";
+import PasswordResetPage from "@/pages/PasswordReset";
+import PasswordResetConfirmPage from "@/pages/PasswordResetConfirm";
+import CallWindow from "@/pages/CallWindow";
+import CrmDashboard from "@/pages/crm/CrmDashboard";
+import PipelineKanban from "@/pages/crm/PipelineKanban";
+import StudentsList from "@/pages/crm/StudentsList";
+import StudentProfile from "@/pages/crm/StudentProfile";
+import CounselorManagement from "@/pages/crm/CounselorManagement";
+import TasksBoard from "@/pages/crm/TasksBoard";
+import CommunicationsList from "@/pages/crm/CommunicationsList";
+import UniversitiesBrowse from "@/pages/crm/UniversitiesBrowse";
+
+// This app hosts only the CRM half of UniAdmissionHelp's frontend, split out
+// so it can be deployed on its own domain/subdomain separately from the
+// public student site (see ../uniadmission). It talks to the same Django
+// API (see VITE_API_BASE_URL) - no backend changes needed.
+export default function App() {
+  return (
+    <AuthProvider>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        <Router>
+          <Routes>
+            <Route path="/call-window" element={<CallWindow />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/password-reset" element={<PasswordResetPage />} />
+            <Route path="/reset-password/:uidb64/:token" element={<PasswordResetConfirmPage />} />
+            <Route path="/crm" element={<RequireCrm><CrmLayout /></RequireCrm>}>
+              <Route index element={<CrmDashboard />} />
+              <Route path="pipeline" element={<PipelineKanban />} />
+              <Route path="students" element={<StudentsList />} />
+              <Route path="students/:id" element={<StudentProfile />} />
+              <Route path="communications" element={<CommunicationsList />} />
+              <Route path="universities" element={<UniversitiesBrowse />} />
+              <Route path="counselors" element={<CounselorManagement />} />
+              <Route path="tasks" element={<TasksBoard />} />
+            </Route>
+            <Route path="/" element={<Navigate to="/crm" replace />} />
+            <Route path="*" element={<Navigate to="/crm" replace />} />
+          </Routes>
+        </Router>
+      </ThemeProvider>
+    </AuthProvider>
+  );
+}
