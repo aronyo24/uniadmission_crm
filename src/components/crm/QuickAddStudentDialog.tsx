@@ -20,7 +20,8 @@ import { Textarea } from "@/components/ui/textarea"
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
-import { createStudent } from "@/lib/crm-api"
+import { assignStudentCounselor, createStudent } from "@/lib/crm-api"
+import { useAuth } from "@/lib/auth"
 import type { Counselor, LeadSource, PipelineStage } from "@/lib/crm-types"
 
 const studentSchema = z.object({
@@ -48,6 +49,12 @@ export function QuickAddStudentDialog({
   leadSources: LeadSource[]
   onCreated: () => void
 }) {
+  const { user } = useAuth()
+  // Only a full admin may put a student onto a counselor's caseload (see
+  // StudentViewSet.assign_counselor) - the Student.counselor field itself is
+  // read-only on create/update now, so a non-admin's selection here would
+  // otherwise be silently dropped by the server.
+  const isFullAdmin = user?.role === "admin"
   const [open, setOpen] = useState(false)
   const defaultStage = stages.find((s) => s.key === "new") ?? stages[0]
 
@@ -88,17 +95,19 @@ export function QuickAddStudentDialog({
 
   const onSubmit = async (values: StudentFormValues) => {
     try {
-      await createStudent({
+      const created = await createStudent({
         full_name: values.full_name,
         email: values.email,
         phone: values.phone,
         stage: values.stage,
-        counselor: values.counselor ? Number(values.counselor) : null,
         lead_source: values.lead_source ? Number(values.lead_source) : null,
         target_country: values.target_country,
         target_specialization: values.target_specialization,
         notes: values.notes,
       })
+      if (isFullAdmin && values.counselor) {
+        await assignStudentCounselor(created.id, Number(values.counselor))
+      }
       toast.success("Lead added")
       form.reset()
       setOpen(false)
@@ -194,30 +203,32 @@ export function QuickAddStudentDialog({
             </div>
 
             <div className="grid sm:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="counselor"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Counselor</FormLabel>
-                    <Select value={field.value || ""} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Unassigned" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {counselors.map((c) => (
-                          <SelectItem key={c.id} value={String(c.id)}>
-                            {c.full_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {isFullAdmin && (
+                <FormField
+                  control={form.control}
+                  name="counselor"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Counselor</FormLabel>
+                      <Select value={field.value || ""} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Unassigned" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {counselors.map((c) => (
+                            <SelectItem key={c.id} value={String(c.id)}>
+                              {c.full_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <FormField
                 control={form.control}
                 name="lead_source"

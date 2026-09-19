@@ -7,11 +7,15 @@
 
 import { apiClient } from "./api"
 import type {
+  Application,
+  ApplicationListItem,
+  ApplicationStatus,
   CallRequest,
   CallType,
   CommunicationChannel,
   CommunicationDirection,
   CommunicationLog,
+  CommunicationStatus,
   Counselor,
   CounselorPerformance,
   CrmAuditLogEntry,
@@ -152,6 +156,53 @@ export async function searchStudents(query: string): Promise<StudentListItem[]> 
 }
 
 // ---------------------------------------------------------------------------
+// Applications
+// ---------------------------------------------------------------------------
+
+export interface ApplicationFilters {
+  student?: number | string
+  status?: ApplicationStatus
+  university?: number | string
+  search?: string
+  page?: number
+  limit?: number
+}
+
+export async function fetchApplications(
+  filters: ApplicationFilters = {}
+): Promise<CrmPaginatedResponse<ApplicationListItem>> {
+  const response = await apiClient.get("/crm/applications/", { params: filters })
+  return response.data
+}
+
+export async function fetchStudentApplications(studentId: number | string): Promise<ApplicationListItem[]> {
+  const response = await apiClient.get("/crm/applications/", { params: { student: studentId, limit: 100 } })
+  return response.data.data
+}
+
+export async function fetchApplication(id: number | string): Promise<Application> {
+  const response = await apiClient.get(`/crm/applications/${id}/`)
+  return response.data
+}
+
+export async function updateApplication(id: number | string, payload: { review_notes?: string }): Promise<Application> {
+  const response = await apiClient.patch(`/crm/applications/${id}/`, payload)
+  return response.data
+}
+
+export async function changeApplicationStatus(
+  id: number | string,
+  status: ApplicationStatus,
+  reviewNotes?: string
+): Promise<Application> {
+  const response = await apiClient.post(`/crm/applications/${id}/change_status/`, {
+    status,
+    review_notes: reviewNotes,
+  })
+  return response.data
+}
+
+// ---------------------------------------------------------------------------
 // Tasks
 // ---------------------------------------------------------------------------
 
@@ -213,8 +264,19 @@ export interface LogCommunicationPayload {
   occurred_at?: string
 }
 
+export interface CommunicationFilters {
+  student?: number | string
+  channel?: CommunicationChannel
+  direction?: CommunicationDirection
+  status?: CommunicationStatus
+  search?: string
+  ordering?: "occurred_at" | "-occurred_at"
+  page?: number
+  limit?: number
+}
+
 export async function fetchCommunications(
-  filters: { student?: number | string; channel?: string; page?: number } = {}
+  filters: CommunicationFilters = {}
 ): Promise<CrmPaginatedResponse<CommunicationLog>> {
   const response = await apiClient.get("/crm/communications/", { params: filters })
   return response.data

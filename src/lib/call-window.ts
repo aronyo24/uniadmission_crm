@@ -26,7 +26,12 @@ export function openCallWindow(params: {
 
   const left = Math.max(0, Math.round((window.screen.width - WIDTH) / 2))
   const top = Math.max(0, Math.round((window.screen.height - HEIGHT) / 2))
-  const features = `width=${WIDTH},height=${HEIGHT},left=${left},top=${top},noopener,noreferrer,toolbar=no,menubar=no,location=no,status=no,resizable=yes`
+  // No `noopener`/`noreferrer` here: this is a same-origin, same-app route,
+  // and `window.open` is spec'd to always return null when either is set -
+  // which broke the popup-blocked fallback below (it fired unconditionally,
+  // navigating this tab away to the call window even when the popup opened
+  // fine). Dropping them lets `win` reflect the real outcome.
+  const features = `width=${WIDTH},height=${HEIGHT},left=${left},top=${top},toolbar=no,menubar=no,location=no,status=no,resizable=yes`
 
   const win = window.open(`/call-window?${qs.toString()}`, "_blank", features)
   if (!win) {

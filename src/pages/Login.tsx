@@ -6,7 +6,37 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/lib/auth"
 
-export default function LoginPage() {
+type Portal = "crm" | "admin"
+
+const PORTAL_COPY: Record<Portal, { badge: string; heading: string; subtext: string; cardTitle: string; cardSubtitle: string }> = {
+  crm: {
+    badge: "Restricted staff access",
+    heading: "Sign in to your CRM workspace.",
+    subtext: "Manage your pipeline, students, and communications with your counselor or admin credentials.",
+    cardTitle: "Staff sign in",
+    cardSubtitle: "This workspace is for counselors and administrators only.",
+  },
+  admin: {
+    badge: "Restricted administrator access",
+    heading: "Sign in to the admin console.",
+    subtext: "Manage analytics, sub-admins, and platform-wide records with your administrator credentials.",
+    cardTitle: "Administrator sign in",
+    cardSubtitle: "This console is for authorized administrator accounts only.",
+  },
+}
+
+// Each portal always lands on its own dashboard - the admin login goes
+// straight to /admin, the CRM login straight to /crm - rather than a
+// role-based redirect, so which page you signed in on is what decides
+// where you land, not just who you are. A deep link into that same portal
+// (e.g. bounced from /admin/users by RequireAdmin) is still honored so an
+// expired session doesn't lose your place.
+const PORTAL_HOME: Record<Portal, string> = {
+  crm: "/crm",
+  admin: "/admin",
+}
+
+export default function LoginPage({ portal = "crm" }: { portal?: Portal }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { login } = useAuth()
@@ -15,13 +45,12 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const copy = PORTAL_COPY[portal]
+  const home = PORTAL_HOME[portal]
 
-  // If we got bounced here from a specific protected route (e.g. /crm or
-  // /admin), honor that on success. Otherwise fall back to the backend's
-  // role-aware redirect_url (counselor -> /crm, admin/sub-admin -> /admin,
-  // everyone else -> /dashboard), extracted from the full URL it returns.
   const explicitFrom = (location.state as { from?: { pathname?: string } | string } | null)?.from
   const explicitPath = typeof explicitFrom === "string" ? explicitFrom : explicitFrom?.pathname
+  const target = explicitPath && explicitPath.startsWith(home) ? explicitPath : home
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -29,9 +58,8 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const { redirect_url } = await login({ email, password, remember_me: rememberMe })
-      const roleBasedPath = redirect_url ? new URL(redirect_url).pathname : "/dashboard"
-      navigate(explicitPath || roleBasedPath, { replace: true })
+      await login({ email, password, remember_me: rememberMe, portal })
+      navigate(target, { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to log in.")
     } finally {
@@ -44,16 +72,12 @@ export default function LoginPage() {
       <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[1.1fr_0.9fr] items-center">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
           <div className="inline-flex items-center rounded-full border bg-background/80 px-4 py-2 text-sm text-muted-foreground shadow-sm">
-            Secure account access
+            {copy.badge}
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">Sign in to your student workspace.</h1>
+          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">{copy.heading}</h1>
           <p className="max-w-xl text-lg text-muted-foreground">
-            Continue to your dashboard, saved resume history, and AI recommendations with one authenticated session.
+            {copy.subtext}
           </p>
-          <div className="grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
-            <div className="rounded-2xl border bg-card p-4 shadow-sm">Resume history syncs automatically after analysis.</div>
-            <div className="rounded-2xl border bg-card p-4 shadow-sm">Protected access keeps recommendations and course views private.</div>
-          </div>
         </motion.div>
 
         <motion.form
@@ -64,8 +88,8 @@ export default function LoginPage() {
           className="rounded-3xl border bg-card/95 p-6 shadow-xl backdrop-blur sm:p-8"
         >
           <div className="mb-6">
-            <h2 className="text-2xl font-semibold text-foreground">Welcome back</h2>
-            <p className="text-sm text-muted-foreground">Use your email and password to continue.</p>
+            <h2 className="text-2xl font-semibold text-foreground">{copy.cardTitle}</h2>
+            <p className="text-sm text-muted-foreground">{copy.cardSubtitle}</p>
           </div>
 
           <div className="space-y-4">
@@ -98,9 +122,11 @@ export default function LoginPage() {
             </Button>
           </div>
 
-          <div className="mt-6 flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-6 flex items-center justify-between text-sm">
             <Link className="text-primary hover:underline" to="/password-reset">Forgot password?</Link>
-            <Link className="text-muted-foreground hover:text-foreground" to="/register">Create an account</Link>
+            <Link className="text-muted-foreground hover:text-foreground" to={portal === "admin" ? "/login" : "/admin/login"}>
+              {portal === "admin" ? "Counselor / CRM sign in" : "Administrator sign in"}
+            </Link>
           </div>
         </motion.form>
       </div>

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
 import {
   ArrowLeft, Mail, Phone, Sparkles, GraduationCap, Wallet, CheckCircle2, ListChecks,
-  MessagesSquare, BadgeCheck, ExternalLink, Award,
+  MessagesSquare, BadgeCheck, ExternalLink, Award, FileText,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -21,16 +21,45 @@ import { MessageThread } from "@/components/MessageThread"
 import { CallManager } from "@/components/CallManager"
 import { CallRequestManager } from "@/components/crm/CallRequestManager"
 import {
-  assignStudentCounselor, changeStudentStage, completeTask,
-  fetchCounselors, fetchPipelineStages, fetchStudent, fetchStudentMessages, fetchStudentRecommendations,
-  fetchTasks, sendStudentMessage,
+  assignStudentCounselor, changeApplicationStatus, changeStudentStage, completeTask,
+  fetchCounselors, fetchPipelineStages, fetchStudent, fetchStudentApplications, fetchStudentMessages,
+  fetchStudentRecommendations, fetchTasks, sendStudentMessage,
 } from "@/lib/crm-api"
 import { formatTuition } from "@/lib/format"
-import type { Counselor, CrmMessage, PipelineStage, Student, StudentRecommendation, Task } from "@/lib/crm-types"
+import { useAuth } from "@/lib/auth"
+import type {
+  ApplicationListItem, ApplicationStatus, Counselor, CrmMessage, PipelineStage, Student,
+  StudentRecommendation, Task,
+} from "@/lib/crm-types"
+
+const APPLICATION_STATUS_OPTIONS: { value: ApplicationStatus; label: string }[] = [
+  { value: "submitted", label: "Submitted" },
+  { value: "under_review", label: "Under Review" },
+  { value: "documents_requested", label: "Documents Requested" },
+  { value: "offer_received", label: "Offer Received" },
+  { value: "enrolled", label: "Enrolled" },
+  { value: "rejected", label: "Rejected" },
+  { value: "withdrawn", label: "Withdrawn" },
+]
+
+const APPLICATION_STATUS_COLOR: Record<ApplicationStatus, string> = {
+  submitted: "border-sky-500/30 bg-sky-500/10 text-sky-600",
+  under_review: "border-indigo-500/30 bg-indigo-500/10 text-indigo-600",
+  documents_requested: "border-amber-500/30 bg-amber-500/10 text-amber-600",
+  offer_received: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600",
+  enrolled: "border-emerald-600/30 bg-emerald-600/10 text-emerald-700",
+  rejected: "border-red-500/30 bg-red-500/10 text-red-600",
+  withdrawn: "border-border bg-muted text-muted-foreground",
+}
 
 export default function StudentProfile() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  // Reassigning a student's counselor is the boundary that puts them inside
+  // or outside a counselor's own scoped view, so only a full admin may do
+  // it (enforced server-side in StudentViewSet.assign_counselor too).
+  const isFullAdmin = user?.role === "admin"
   const [student, setStudent] = useState<Student | null>(null)
   const [stages, setStages] = useState<PipelineStage[]>([])
   const [counselors, setCounselors] = useState<Counselor[]>([])
@@ -41,21 +70,25 @@ export default function StudentProfile() {
   const [activityKey, setActivityKey] = useState(0)
   const refreshActivity = () => setActivityKey((k) => k + 1)
   const [messages, setMessages] = useState<CrmMessage[] | null>(null)
+  const [applications, setApplications] = useState<ApplicationListItem[]>([])
+  const [applicationUpdating, setApplicationUpdating] = useState<number | null>(null)
 
   const load = useCallback(async () => {
     if (!id) return
     setLoading(true)
     try {
-      const [studentRes, stagesRes, counselorsRes, tasksRes] = await Promise.all([
+      const [studentRes, stagesRes, counselorsRes, tasksRes, applicationsRes] = await Promise.all([
         fetchStudent(id),
         fetchPipelineStages(),
         fetchCounselors(),
         fetchTasks({ student: id }),
+        fetchStudentApplications(id),
       ])
       setStudent(studentRes)
       setStages(stagesRes)
       setCounselors(counselorsRes)
       setTasks(tasksRes.data)
+      setApplications(applicationsRes)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load student")
     } finally {
@@ -143,6 +176,19 @@ export default function StudentProfile() {
     }
   }
 
+  const handleApplicationStatusChange = async (applicationId: number, status: ApplicationStatus) => {
+    setApplicationUpdating(applicationId)
+    try {
+      const updated = await changeApplicationStatus(applicationId, status)
+      setApplications((prev) => prev.map((a) => (a.id === applicationId ? { ...a, ...updated } : a)))
+      toast.success("Application status updated")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update application status")
+    } finally {
+      setApplicationUpdating(null)
+    }
+  }
+
   if (loading && !student) {
     return <div className="space-y-4 animate-pulse">
       <div className="h-8 w-48 rounded bg-muted/60" />
@@ -198,17 +244,23 @@ export default function StudentProfile() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={student.counselor ? String(student.counselor) : "none"} onValueChange={(v) => void handleCounselorChange(v)}>
-              <SelectTrigger className="w-full sm:w-44">
-                <SelectValue placeholder="Assign counselor" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Unassigned</SelectItem>
-                {counselors.map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)}>{c.full_name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {isFullAdmin ? (
+              <Select value={student.counselor ? String(student.counselor) : "none"} onValueChange={(v) => void handleCounselorChange(v)}>
+                <SelectTrigger className="w-full sm:w-44">
+                  <SelectValue placeholder="Assign counselor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {counselors.map((c) => (
+                    <SelectItem key={c.id} value={String(c.id)}>{c.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Badge variant="outline" className="w-full sm:w-44 justify-center py-2">
+                {student.counselor_name ?? "Unassigned"}
+              </Badge>
+            )}
           </div>
         </div>
       </div>
@@ -227,6 +279,50 @@ export default function StudentProfile() {
               <Info label="English Test" value={student.english_test} />
               <Info label="English Score" value={student.english_score != null ? String(student.english_score) : undefined} />
             </dl>
+          </div>
+
+          <div className="rounded-2xl border bg-card p-5 shadow-sm">
+            <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" /> Applications
+            </h3>
+            {applications.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">No applications submitted yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {applications.map((app) => (
+                  <div key={app.id} className="rounded-xl border p-4">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm">{app.course_name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {app.university_name}{app.intake_term ? ` · ${app.intake_term}` : ""}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Submitted {new Date(app.submitted_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={APPLICATION_STATUS_COLOR[app.status]}>
+                        {APPLICATION_STATUS_OPTIONS.find((o) => o.value === app.status)?.label ?? app.status}
+                      </Badge>
+                    </div>
+                    <div className="mt-3">
+                      <Select
+                        value={app.status}
+                        onValueChange={(v) => void handleApplicationStatusChange(app.id, v as ApplicationStatus)}
+                        disabled={applicationUpdating === app.id}
+                      >
+                        <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {APPLICATION_STATUS_OPTIONS.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="rounded-2xl border bg-card p-5 shadow-sm">

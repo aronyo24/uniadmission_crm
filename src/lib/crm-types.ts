@@ -90,6 +90,51 @@ export interface Student extends StudentListItem {
   created_by: number | null
 }
 
+export type ApplicationStatus =
+  | "submitted"
+  | "under_review"
+  | "documents_requested"
+  | "offer_received"
+  | "enrolled"
+  | "rejected"
+  | "withdrawn"
+
+/** A student's application to one specific course (apps.crm.Application). */
+export interface ApplicationListItem {
+  id: number
+  student: number
+  student_name: string
+  student_email: string
+  course: number
+  course_name: string
+  university_name: string
+  status: ApplicationStatus
+  intake_term: string
+  counselor_name: string | null
+  submitted_at: string
+  updated_at: string
+  decided_at: string | null
+}
+
+export interface Application extends Omit<ApplicationListItem, "student_name" | "student_email" | "counselor_name"> {
+  university_logo: string | null
+  full_name: string
+  email: string
+  phone: string
+  nationality: string
+  date_of_birth: string | null
+  highest_qualification: string
+  institution_name: string
+  gpa: number | null
+  english_test: string
+  english_score: number | null
+  personal_statement: string
+  resume: string | null
+  reviewed_by: number | null
+  reviewed_by_name: string | null
+  review_notes: string
+}
+
 export interface StudentRecommendation {
   course_id: number
   course_title: string
@@ -149,11 +194,14 @@ export interface CommunicationLog {
   id: number
   student: number
   student_name: string
+  student_email: string
   channel: CommunicationChannel
   direction: CommunicationDirection
   subject: string
   summary: string
   body_html: string
+  to_email: string
+  cc_email: string
   status: CommunicationStatus
   error_message: string
   duration_seconds: number | null

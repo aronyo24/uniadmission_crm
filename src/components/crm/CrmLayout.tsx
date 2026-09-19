@@ -4,7 +4,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   LayoutDashboard, KanbanSquare, Users, UserCog, ListChecks, MessagesSquare, GraduationCap,
-  LogOut, Menu, ChevronRight, Bell, Settings, Briefcase,
+  LogOut, Menu, ChevronRight, Bell, Settings, Briefcase, FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -24,6 +24,7 @@ const navItems: NavItem[] = [
   { to: "/crm",             label: "Dashboard",  icon: LayoutDashboard, exact: true },
   { to: "/crm/pipeline",    label: "Pipeline",   icon: KanbanSquare,    permissionKey: "crm_view_own_students" },
   { to: "/crm/students",    label: "Students",   icon: Users,           permissionKey: "crm_view_own_students" },
+  { to: "/crm/applications", label: "Applications", icon: FileText,     permissionKey: "crm_view_own_students" },
   { to: "/crm/communications", label: "Communications", icon: MessagesSquare, permissionKey: "crm_view_own_students" },
   { to: "/crm/universities", label: "Universities", icon: GraduationCap },
   { to: "/crm/counselors",  label: "Counselors", icon: UserCog },
@@ -31,7 +32,7 @@ const navItems: NavItem[] = [
 ]
 
 interface SidebarContentProps {
-  user: { full_name?: string | null; email?: string | null; role?: string | null; permissions?: AdminPermissions } | null
+  user: { full_name?: string | null; email?: string | null; role?: string | null; permissions?: AdminPermissions; is_admin?: boolean } | null
   isFullAdmin: boolean
   visibleItems: NavItem[]
   location: { pathname: string }
@@ -91,13 +92,18 @@ const SidebarContent = ({ user, isFullAdmin, visibleItems, location, setSidebarO
     </nav>
 
     <div className="px-3 pb-4 border-t border-white/10 pt-3 space-y-1">
-      <Link
-        to="/admin"
-        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:text-white hover:bg-white/8 transition-all"
-      >
-        <Settings className="w-4 h-4" />
-        Admin Dashboard
-      </Link>
+      {/* Only admins/sub-admins can actually open /admin (see RequireAdmin) -
+          hide the cross-link entirely for counselors instead of showing a
+          button that would just bounce them back out. */}
+      {user?.is_admin && (
+        <Link
+          to="/admin"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/50 hover:text-white hover:bg-white/8 transition-all"
+        >
+          <Settings className="w-4 h-4" />
+          Admin Dashboard
+        </Link>
+      )}
       <button
         onClick={handleLogout}
         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-400/70 hover:text-red-300 hover:bg-red-500/10 transition-all"

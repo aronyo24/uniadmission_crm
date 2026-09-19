@@ -22,7 +22,7 @@ interface AuthContextValue {
   loading: boolean
   isAuthenticated: boolean
   refreshAuth: () => Promise<void>
-  login: (payload: { email: string; password: string; remember_me?: boolean }) => Promise<{ user: AuthUser; redirect_url?: string }>
+  login: (payload: { email: string; password: string; remember_me?: boolean; portal?: 'crm' | 'admin' }) => Promise<{ user: AuthUser; redirect_url?: string }>
   register: (payload: RegisterPayload) => Promise<void>
   logout: () => Promise<void>
 }

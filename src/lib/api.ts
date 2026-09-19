@@ -449,12 +449,19 @@ export async function ensureCsrfToken(): Promise<string> {
     return csrfTokenCache || '';
 }
 
-export async function loginUser(payload: { email: string; password: string; remember_me?: boolean }): Promise<{ user: AuthUser; redirect_url?: string; remember_me?: boolean }> {
+export async function loginUser(payload: { email: string; password: string; remember_me?: boolean; portal?: 'crm' | 'admin' }): Promise<{ user: AuthUser; redirect_url?: string; remember_me?: boolean }> {
     await ensureCsrfToken();
     const response = await authClient.post('/login/', {
         username: payload.email,
         password: payload.password,
         remember_me: payload.remember_me ?? true,
+        // This deployment is the staff-only frontend (see App.tsx), so the
+        // portal is always 'crm' or 'admin' - never 'student'. Sending the
+        // page-specific value (not just a blanket 'crm') means the backend
+        // rejects a counselor's correct password on the admin-only login
+        // page with a clear "administrators only" error, instead of letting
+        // them in and bouncing them out client-side after the fact.
+        portal: payload.portal ?? 'crm',
     });
     return response.data as { user: AuthUser; redirect_url?: string; remember_me?: boolean };
 }
