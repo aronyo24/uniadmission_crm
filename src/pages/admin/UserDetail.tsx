@@ -1,3 +1,4 @@
+import { safeHref } from "@/lib/utils"
 import { useEffect, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { isAxiosError } from "axios"
@@ -155,16 +156,16 @@ export default function UserDetail() {
                 </CardHeader>
                 <CardContent className="divide-y">
                   {user.linkedin_url && (
-                    <InfoRow icon={Linkedin} label="LinkedIn" value={<a href={user.linkedin_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{user.linkedin_url}</a>} />
+                    <InfoRow icon={Linkedin} label="LinkedIn" value={<a href={safeHref(user.linkedin_url)} target="_blank" rel="noreferrer" className="text-primary hover:underline">{user.linkedin_url}</a>} />
                   )}
                   {user.github_url && (
-                    <InfoRow icon={Github} label="GitHub" value={<a href={user.github_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{user.github_url}</a>} />
+                    <InfoRow icon={Github} label="GitHub" value={<a href={safeHref(user.github_url)} target="_blank" rel="noreferrer" className="text-primary hover:underline">{user.github_url}</a>} />
                   )}
                   {user.portfolio_url && (
-                    <InfoRow icon={Link2} label="Portfolio" value={<a href={user.portfolio_url} target="_blank" rel="noreferrer" className="text-primary hover:underline">{user.portfolio_url}</a>} />
+                    <InfoRow icon={Link2} label="Portfolio" value={<a href={safeHref(user.portfolio_url)} target="_blank" rel="noreferrer" className="text-primary hover:underline">{user.portfolio_url}</a>} />
                   )}
                   {user.resume_file && (
-                    <InfoRow icon={FileText} label="Resume" value={<a href={user.resume_file} target="_blank" rel="noreferrer" className="text-primary hover:underline">Download resume</a>} />
+                    <InfoRow icon={FileText} label="Resume" value={<a href={safeHref(user.resume_file)} target="_blank" rel="noreferrer" className="text-primary hover:underline">Download resume</a>} />
                   )}
                 </CardContent>
               </Card>

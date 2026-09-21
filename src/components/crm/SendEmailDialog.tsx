@@ -67,8 +67,8 @@ export function SendEmailDialog({
           <DialogTitle>Send Email</DialogTitle>
           <DialogDescription>
             This sends a real email to <span className="font-medium text-foreground">{studentEmail}</span> and is
-            recorded in this student's shared communication history. You're CC'd on it too, so a copy will land in
-            your own inbox.
+            recorded in this student's shared communication history. info@uniadmissionhelp.com and you are
+            CC'd, and the student's replies go to both of you and show up in the CRM.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

@@ -1,3 +1,4 @@
+import { safeHref } from "@/lib/utils"
 import { useCallback, useEffect, useState } from "react"
 import { type ColumnDef } from "@tanstack/react-table"
 import { toast } from "sonner"
@@ -174,7 +175,7 @@ export default function UniversitiesBrowse() {
 
                 {selected.website_url && (
                   <Button asChild variant="outline" className="w-full">
-                    <a href={selected.website_url} target="_blank" rel="noreferrer">
+                    <a href={safeHref(selected.website_url)} target="_blank" rel="noreferrer">
                       View on university website <ExternalLink className="w-4 h-4 ml-2" />
                     </a>
                   </Button>

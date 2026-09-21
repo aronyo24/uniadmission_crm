@@ -8,7 +8,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import LoginPage from "@/pages/Login";
 import PasswordResetPage from "@/pages/PasswordReset";
 import PasswordResetConfirmPage from "@/pages/PasswordResetConfirm";
-import CallWindow from "@/pages/CallWindow";
+import MeetingRoom from "@/pages/MeetingRoom";
 import CrmDashboard from "@/pages/crm/CrmDashboard";
 import PipelineKanban from "@/pages/crm/PipelineKanban";
 import StudentsList from "@/pages/crm/StudentsList";
@@ -43,7 +43,7 @@ export default function App() {
       >
         <Router>
           <Routes>
-            <Route path="/call-window" element={<CallWindow />} />
+            <Route path="/meeting/:token" element={<RequireCrm><MeetingRoom /></RequireCrm>} />
             <Route path="/login" element={<LoginPage portal="crm" />} />
             <Route path="/admin/login" element={<LoginPage portal="admin" />} />
             <Route path="/password-reset" element={<PasswordResetPage />} />

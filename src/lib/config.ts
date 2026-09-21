@@ -12,7 +12,6 @@ const config = {
   // NOTE: Frontend never calls Ollama directly for chat.
   //       All chat goes through Django /api/advisor-chat/
   ollamaUrl: import.meta.env.VITE_OLLAMA_URL as string,
-  ollamaKey: import.meta.env.VITE_OLLAMA_KEY as string,
 
   // App info
   appName: (import.meta.env.VITE_APP_NAME as string) || 'UniGuide AI',
@@ -24,7 +23,7 @@ const config = {
 export default config;
 
 // Validate required vars on startup
-const required = ['VITE_API_BASE_URL', 'VITE_OLLAMA_URL', 'VITE_OLLAMA_KEY'] as const;
+const required = ['VITE_API_BASE_URL', 'VITE_OLLAMA_URL'] as const;
 required.forEach((key) => {
   if (!import.meta.env[key]) {
     console.warn(`Warning: Missing env var: ${key}`);

@@ -1,3 +1,4 @@
+import { safeHref } from "@/lib/utils"
 import { useCallback, useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { toast } from "sonner"
@@ -18,7 +19,7 @@ import { SendEmailDialog } from "@/components/crm/SendEmailDialog"
 import { LogCommunicationDialog } from "@/components/crm/LogCommunicationDialog"
 import { ActivityTimeline } from "@/components/crm/ActivityTimeline"
 import { MessageThread } from "@/components/MessageThread"
-import { CallManager } from "@/components/CallManager"
+import { MeetingsPanel } from "@/components/crm/MeetingsPanel"
 import { CallRequestManager } from "@/components/crm/CallRequestManager"
 import {
   assignStudentCounselor, changeApplicationStatus, changeStudentStage, completeTask,
@@ -386,7 +387,7 @@ export default function StudentProfile() {
                         </div>
                       </div>
                       {rec.course_url && (
-                        <a href={rec.course_url} target="_blank" rel="noreferrer" className="flex-shrink-0 text-muted-foreground hover:text-primary">
+                        <a href={safeHref(rec.course_url)} target="_blank" rel="noreferrer" className="flex-shrink-0 text-muted-foreground hover:text-primary">
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       )}
@@ -471,18 +472,16 @@ export default function StudentProfile() {
         </div>
       </div>
 
+      <MeetingsPanel studentId={student.id} studentName={student.full_name} canMeet={!!student.user} />
+
       <div className="rounded-2xl border bg-card p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <h3 className="font-semibold flex items-center gap-2">
             <MessagesSquare className="w-4 h-4 text-primary" /> Direct Chat
           </h3>
-          {student.user && (
-            <CallManager otherPartyName={student.full_name} studentId={student.id} />
-          )}
         </div>
         <p className="text-xs text-muted-foreground mb-3">
           Live chat with {student.full_name} — they see this instantly in their student portal.
-          {!student.user && " Calling is unavailable until they register a student account."}
         </p>
         <MessageThread
           messages={messages}

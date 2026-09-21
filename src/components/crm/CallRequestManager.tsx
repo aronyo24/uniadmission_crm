@@ -19,9 +19,9 @@ const POLL_MS = 20000
  * `trailingContent`) so it shows up right where the counselor is already
  * looking, instead of a separate panel they might never notice. Accept
  * reveals the scheduling form; Reject cancels the request outright. The
- * counterpart to CallRequestPanel (student side). Sits alongside
- * CallManager, which still places the actual call - this only manages
- * the booking.
+ * counterpart to CallRequestPanel (student side). Once the student
+ * confirms, a meeting with a join link is created automatically (see
+ * MeetingsPanel) - this only manages the booking.
  */
 export function CallRequestManager({ studentId }: { studentId: number | string }) {
   const [request, setRequest] = useState<CallRequest | null | undefined>(undefined)
@@ -149,7 +149,7 @@ export function CallRequestManager({ studentId }: { studentId: number | string }
           <div>
             <p className={dueSoon ? "font-semibold text-emerald-700 dark:text-emerald-400" : ""}>
               {dueSoon
-                ? "Scheduled call is due now — start it above."
+                ? "Scheduled meeting is due now — open it from Meetings above."
                 : `Confirmed for ${request.proposed_at ? formatScheduledTime(request.proposed_at) : "soon"}.`}
             </p>
             {countdown && (
