@@ -4,7 +4,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import {
   LayoutDashboard, KanbanSquare, Users, UserCog, ListChecks, MessagesSquare, GraduationCap,
-  LogOut, Menu, ChevronRight, Bell, Settings, Briefcase, FileText,
+  LogOut, Menu, ChevronRight, Bell, Settings, Briefcase, FileText, UserCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -18,6 +18,7 @@ interface NavItem {
   icon: React.ElementType
   exact?: boolean
   permissionKey?: keyof AdminPermissions
+  adminOnly?: boolean
 }
 
 const navItems: NavItem[] = [
@@ -27,8 +28,9 @@ const navItems: NavItem[] = [
   { to: "/crm/applications", label: "Applications", icon: FileText,     permissionKey: "crm_view_own_students" },
   { to: "/crm/communications", label: "Communications", icon: MessagesSquare, permissionKey: "crm_view_own_students" },
   { to: "/crm/universities", label: "Universities", icon: GraduationCap },
-  { to: "/crm/counselors",  label: "Counselors", icon: UserCog },
+  { to: "/crm/counselors",  label: "Counselors", icon: UserCog,         adminOnly: true },
   { to: "/crm/tasks",       label: "Tasks",      icon: ListChecks },
+  { to: "/crm/settings",    label: "Settings",   icon: UserCircle },
 ]
 
 interface SidebarContentProps {
@@ -129,6 +131,7 @@ export function CrmLayout() {
   const perms = user?.permissions || {}
 
   const visibleItems = navItems.filter((item) => {
+    if (item.adminOnly && !user?.is_admin) return false
     if (item.permissionKey && !isFullAdmin && !perms[item.permissionKey]) return false
     return true
   })

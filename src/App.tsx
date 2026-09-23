@@ -18,6 +18,7 @@ import CounselorManagement from "@/pages/crm/CounselorManagement";
 import TasksBoard from "@/pages/crm/TasksBoard";
 import CommunicationsList from "@/pages/crm/CommunicationsList";
 import UniversitiesBrowse from "@/pages/crm/UniversitiesBrowse";
+import ProfileSettings from "@/pages/crm/ProfileSettings";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import VisitorAnalytics from "@/pages/admin/VisitorAnalytics";
 import SubmissionAnalytics from "@/pages/admin/SubmissionAnalytics";
@@ -56,8 +57,9 @@ export default function App() {
               <Route path="applications" element={<ApplicationsList />} />
               <Route path="communications" element={<CommunicationsList />} />
               <Route path="universities" element={<UniversitiesBrowse />} />
-              <Route path="counselors" element={<CounselorManagement />} />
+              <Route path="counselors" element={<RequireAdmin><CounselorManagement /></RequireAdmin>} />
               <Route path="tasks" element={<TasksBoard />} />
+              <Route path="settings" element={<ProfileSettings />} />
             </Route>
             <Route path="/admin" element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
               <Route index element={<AdminDashboard />} />

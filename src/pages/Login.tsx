@@ -8,18 +8,12 @@ import { useAuth } from "@/lib/auth"
 
 type Portal = "crm" | "admin"
 
-const PORTAL_COPY: Record<Portal, { badge: string; heading: string; subtext: string; cardTitle: string; cardSubtitle: string }> = {
+const PORTAL_COPY: Record<Portal, { cardTitle: string; cardSubtitle: string }> = {
   crm: {
-    badge: "Restricted staff access",
-    heading: "Sign in to your CRM workspace.",
-    subtext: "Manage your pipeline, students, and communications with your counselor or admin credentials.",
     cardTitle: "Staff sign in",
     cardSubtitle: "This workspace is for counselors and administrators only.",
   },
   admin: {
-    badge: "Restricted administrator access",
-    heading: "Sign in to the admin console.",
-    subtext: "Manage analytics, sub-admins, and platform-wide records with your administrator credentials.",
     cardTitle: "Administrator sign in",
     cardSubtitle: "This console is for authorized administrator accounts only.",
   },
@@ -68,22 +62,11 @@ export default function LoginPage({ portal = "crm" }: { portal?: Portal }) {
   }
 
   return (
-    <div className="min-h-screen pt-28 pb-20 px-4">
-      <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[1.1fr_0.9fr] items-center">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          <div className="inline-flex items-center rounded-full border bg-background/80 px-4 py-2 text-sm text-muted-foreground shadow-sm">
-            {copy.badge}
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">{copy.heading}</h1>
-          <p className="max-w-xl text-lg text-muted-foreground">
-            {copy.subtext}
-          </p>
-        </motion.div>
-
+    <div className="flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="w-full max-w-md">
         <motion.form
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
           onSubmit={handleSubmit}
           className="rounded-3xl border bg-card/95 p-6 shadow-xl backdrop-blur sm:p-8"
         >
