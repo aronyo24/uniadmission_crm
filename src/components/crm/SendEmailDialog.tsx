@@ -31,17 +31,31 @@ export function SendEmailDialog({
   studentId,
   studentEmail,
   onSent,
+  replySubject,
+  trigger,
 }: {
   studentId: number
   studentEmail: string
   onSent: () => void
+  /** When replying to a student's email: pre-fills "Re: <subject>". */
+  replySubject?: string
+  trigger?: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
+  const isReply = replySubject !== undefined
+  const defaultSubject = isReply && replySubject
+    ? (/^re:/i.test(replySubject.trim()) ? replySubject.trim() : `Re: ${replySubject.trim()}`)
+    : ""
 
   const form = useForm<EmailFormValues>({
     resolver: zodResolver(emailSchema),
-    defaultValues: { subject: "", message: "" },
+    defaultValues: { subject: defaultSubject, message: "" },
   })
+
+  const handleOpenChange = (next: boolean) => {
+    if (next) form.reset({ subject: defaultSubject, message: "" })
+    setOpen(next)
+  }
 
   const onSubmit = async (values: EmailFormValues) => {
     try {
@@ -56,15 +70,17 @@ export function SendEmailDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <Mail className="w-4 h-4 mr-2" /> Send Email
-        </Button>
+        {trigger ?? (
+          <Button size="sm">
+            <Mail className="w-4 h-4 mr-2" /> Send Email
+          </Button>
+        )}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
-          <DialogTitle>Send Email</DialogTitle>
+          <DialogTitle>{isReply ? "Reply to Student" : "Send Email"}</DialogTitle>
           <DialogDescription>
             This sends a real email to <span className="font-medium text-foreground">{studentEmail}</span> and is
             recorded in this student's shared communication history. info@uniadmissionhelp.com and you are

@@ -282,6 +282,13 @@ export async function fetchCommunications(
   return response.data
 }
 
+// Asks the backend to pull new student email replies from the shared mailbox
+// now. Throttled server-side: `checked` is false when a sync ran moments ago.
+export async function syncInbox(): Promise<{ checked: boolean; logged: number }> {
+  const response = await apiClient.post("/crm/communications/sync-inbox/")
+  return response.data
+}
+
 export async function logCommunication(payload: LogCommunicationPayload): Promise<CommunicationLog> {
   const response = await apiClient.post("/crm/communications/", payload)
   return response.data

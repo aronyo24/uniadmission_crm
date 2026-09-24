@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
-  Mail, Phone, MessageCircle, FileText, ArrowRightLeft, UserCog, AlertTriangle, Clock,
+  Mail, Phone, MessageCircle, FileText, ArrowRightLeft, UserCog, AlertTriangle, Clock, CornerDownLeft,
 } from "lucide-react"
 import { toast } from "sonner"
 
 import { PersonAvatar } from "@/components/crm/PersonAvatar"
 import { StatusBadge } from "@/components/crm/StatusBadge"
-import { fetchCommunications, fetchCrmAuditLog } from "@/lib/crm-api"
+import { fetchCommunications, fetchCrmAuditLog, syncInbox } from "@/lib/crm-api"
+import { replyPreview } from "@/lib/email-reply"
 import type { CommunicationLog, CrmAuditLogEntry } from "@/lib/crm-types"
 
 interface TimelineEntry {
@@ -20,6 +21,7 @@ interface TimelineEntry {
   studentName?: string
   studentId?: number
   failed?: boolean
+  inboundReply?: boolean
 }
 
 const CHANNEL_ICONS: Record<string, React.ElementType> = {
@@ -34,6 +36,20 @@ const CHANNEL_ICONS: Record<string, React.ElementType> = {
 function commToEntry(log: CommunicationLog): TimelineEntry {
   const icon = CHANNEL_ICONS[log.channel] ?? FileText
   const channelLabel = log.channel.replace(/_/g, " ")
+  if (log.channel === "email" && log.direction === "inbound") {
+    // Show only the student's new text, not the quoted thread under it.
+    return {
+      id: `comm-${log.id}`,
+      timestamp: log.occurred_at,
+      icon: CornerDownLeft,
+      title: log.subject || "(no subject)",
+      detail: replyPreview(log.summary),
+      actorName: log.student_name,
+      studentName: log.student_name,
+      studentId: log.student,
+      inboundReply: true,
+    }
+  }
   return {
     id: `comm-${log.id}`,
     timestamp: log.occurred_at,
@@ -84,6 +100,12 @@ export function ActivityTimeline({ studentId, limit = 20 }: { studentId?: number
     void load()
   }, [load])
 
+  // Pick up email replies that arrived since the last mailbox check.
+  useEffect(() => {
+    syncInbox().then(({ logged }) => { if (logged > 0) void load() }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount
+  }, [])
+
   if (entries === null) {
     return (
       <div className="space-y-2">
@@ -102,7 +124,9 @@ export function ActivityTimeline({ studentId, limit = 20 }: { studentId?: number
         <div key={entry.id} className="flex items-start gap-3 py-2.5 border-b border-border/50 last:border-0">
           <div
             className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-              entry.failed ? "bg-red-500/15 text-red-500" : "bg-primary/10 text-primary"
+              entry.failed ? "bg-red-500/15 text-red-500"
+                : entry.inboundReply ? "bg-emerald-500/15 text-emerald-600"
+                : "bg-primary/10 text-primary"
             }`}
           >
             <entry.icon className="w-3.5 h-3.5" />
@@ -111,6 +135,11 @@ export function ActivityTimeline({ studentId, limit = 20 }: { studentId?: number
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm font-medium truncate">{entry.title}</p>
               {entry.failed && <StatusBadge value="failed" />}
+              {entry.inboundReply && (
+                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-px text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+                  Student reply
+                </span>
+              )}
             </div>
             {entry.detail && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{entry.detail}</p>}
             <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">

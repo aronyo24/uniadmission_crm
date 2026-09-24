@@ -3,14 +3,17 @@ import { Link } from "react-router-dom"
 import { toast } from "sonner"
 import {
   Search, Mail, Phone, MessageCircle, FileText, Clock, ChevronDown, ArrowDownToLine,
-  ArrowUpFromLine, AlertTriangle, ArrowUpDown, MoreHorizontal,
+  ArrowUpFromLine, AlertTriangle, ArrowUpDown, RefreshCw,
 } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { PersonAvatar } from "@/components/crm/PersonAvatar"
-import { fetchCommunications, type CommunicationFilters } from "@/lib/crm-api"
+import { InboundEmailCard } from "@/components/crm/InboundEmailCard"
+import { replyPreview } from "@/lib/email-reply"
+import { fetchCommunications, syncInbox, type CommunicationFilters } from "@/lib/crm-api"
 import type { CommunicationChannel, CommunicationDirection, CommunicationLog, CommunicationStatus } from "@/lib/crm-types"
 
 const CHANNEL_META: Record<CommunicationChannel, { label: string; icon: React.ElementType }> = {
@@ -34,28 +37,6 @@ function formatDateTime(iso: string): string {
   })
 }
 
-// Splits a plain-text reply body from the trailing quoted thread most email
-// clients append ("On ... wrote:", "-----Original Message-----", or a block
-// of "> " quoted lines) so the CRM can show just the new reply by default -
-// the way a real inbox does - with the old thread tucked behind a toggle.
-function splitQuotedReply(text: string): { main: string; quoted: string | null } {
-  const lines = text.split("\n")
-  const quoteStart = lines.findIndex((line) => {
-    const trimmed = line.trim()
-    return (
-      trimmed.startsWith(">") ||
-      /^on .+ wrote:\s*$/i.test(trimmed) ||
-      /^-{2,}\s*original message\s*-{2,}$/i.test(trimmed) ||
-      /^from:\s*.+$/i.test(trimmed)
-    )
-  })
-  if (quoteStart <= 0) return { main: text.trim(), quoted: null }
-  const main = lines.slice(0, quoteStart).join("\n").trim()
-  const quoted = lines.slice(quoteStart).join("\n").trim()
-  if (!main || !quoted) return { main: text.trim(), quoted: null }
-  return { main, quoted }
-}
-
 function EmailToCcLine({ log }: { log: CommunicationLog }) {
   if (!log.to_email && !log.cc_email) return null
   return (
@@ -74,52 +55,6 @@ function EmailToCcLine({ log }: { log: CommunicationLog }) {
   )
 }
 
-function InboundEmailBody({ log }: { log: CommunicationLog }) {
-  const [showQuoted, setShowQuoted] = useState(false)
-  const { main, quoted } = splitQuotedReply(log.summary || "")
-
-  return (
-    <div className="rounded-xl border bg-card overflow-hidden">
-      <div className="flex items-center justify-between gap-3 border-b bg-muted/30 px-4 py-2.5">
-        <div className="flex items-center gap-2 min-w-0">
-          <PersonAvatar name={log.student_name} size="sm" className="h-6 w-6 text-[10px] flex-shrink-0" />
-          <div className="min-w-0 leading-tight">
-            <p className="text-sm font-semibold text-foreground truncate">{log.student_name}</p>
-            <p className="text-xs text-muted-foreground truncate">{log.student_email}</p>
-          </div>
-        </div>
-        <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">{formatDateTime(log.occurred_at)}</span>
-      </div>
-      <div className="px-4 py-3.5">
-        {log.subject && (
-          <p className="text-sm font-semibold text-foreground mb-1">{log.subject}</p>
-        )}
-        <EmailToCcLine log={log} />
-        <p className="text-sm leading-relaxed whitespace-pre-wrap text-foreground/90">
-          {main || "No further details logged."}
-        </p>
-        {quoted && (
-          <div className="mt-3">
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); setShowQuoted((v) => !v) }}
-              className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-1 text-xs text-muted-foreground hover:bg-muted/70 transition-colors"
-            >
-              <MoreHorizontal className="w-3.5 h-3.5" />
-              {showQuoted ? "Hide quoted text" : "Show quoted text"}
-            </button>
-            {showQuoted && (
-              <p className="mt-2 border-l-2 pl-3 text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
-                {quoted}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function whoLine(log: CommunicationLog): string {
   if (log.direction === "inbound") {
     return log.channel === "email" ? `${log.student_name} replied` : `${log.student_name}`
@@ -130,12 +65,14 @@ function whoLine(log: CommunicationLog): string {
   return `${actor} logged a ${CHANNEL_META[log.channel].label.toLowerCase()} with ${log.student_name}`
 }
 
-function CommunicationRow({ log }: { log: CommunicationLog }) {
+function CommunicationRow({ log, onChanged }: { log: CommunicationLog; onChanged: () => void }) {
   const [expanded, setExpanded] = useState(false)
   const meta = CHANNEL_META[log.channel]
   const Icon = log.status === "failed" ? AlertTriangle : meta.icon
   const DirectionIcon = log.direction === "inbound" ? ArrowDownToLine : ArrowUpFromLine
   const hasDetails = Boolean(log.body_html || log.summary)
+  const isInboundEmail = log.channel === "email" && log.direction === "inbound"
+  const preview = isInboundEmail ? replyPreview(log.summary) : log.summary
 
   return (
     <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
@@ -172,8 +109,8 @@ function CommunicationRow({ log }: { log: CommunicationLog }) {
             )}
           </div>
 
-          {!expanded && log.summary && (
-            <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{log.summary}</p>
+          {!expanded && preview && (
+            <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{preview}</p>
           )}
 
           <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
@@ -198,12 +135,12 @@ function CommunicationRow({ log }: { log: CommunicationLog }) {
           {log.status === "failed" && log.error_message && (
             <p className="text-xs text-red-600 mb-3">Send failed: {log.error_message}</p>
           )}
-          {log.channel === "email" && log.direction === "inbound" ? (
+          {isInboundEmail ? (
             // Inbound replies only ever populate `summary` as plain text
             // (see poll_inbound_emails._extract_body) - HTML is deliberately
             // stripped rather than trusted and rendered, so this is styled
             // as its own email-card layout instead of dumped as a flat blob.
-            <InboundEmailBody log={log} />
+            <InboundEmailCard log={log} onReplied={onChanged} />
           ) : (
             <div className="rounded-xl border bg-muted/20 p-4">
               {log.channel === "email" && <EmailToCcLine log={log} />}
@@ -261,13 +198,45 @@ export default function CommunicationsList() {
 
   useEffect(() => { void load() }, [load])
 
+  // Replies are pulled from the mailbox by the backend; do it on page open
+  // (in the background - the list above doesn't wait) and on demand.
+  const [syncing, setSyncing] = useState(false)
+  const checkForReplies = useCallback(async (manual: boolean) => {
+    setSyncing(true)
+    try {
+      const { checked, logged } = await syncInbox()
+      if (logged > 0) {
+        toast.success(`${logged} new repl${logged === 1 ? "y" : "ies"} received`)
+        void load()
+      } else if (manual) {
+        toast.info(checked ? "No new replies" : "Inbox was checked moments ago - no new replies")
+      }
+    } catch {
+      if (manual) toast.error("Could not reach the mailbox right now")
+    } finally {
+      setSyncing(false)
+    }
+  }, [load])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- background mailbox sync, once per page open
+    void checkForReplies(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per page open, not on every filter change
+  }, [])
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Communications</h1>
-        <p className="text-sm text-muted-foreground">
-          Every email, call, and logged touchpoint across every student - including replies students send back.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold">Communications</h1>
+          <p className="text-sm text-muted-foreground">
+            Every email, call, and logged touchpoint across every student - including replies students send back.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => void checkForReplies(true)} disabled={syncing}>
+          <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+          {syncing ? "Checking inbox..." : "Check for replies"}
+        </Button>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-3">
@@ -334,7 +303,7 @@ export default function CommunicationsList() {
       )}
 
       <div className="space-y-3">
-        {logs.map((log) => <CommunicationRow key={log.id} log={log} />)}
+        {logs.map((log) => <CommunicationRow key={log.id} log={log} onChanged={() => void load()} />)}
       </div>
 
       {totalPages > 1 && (
